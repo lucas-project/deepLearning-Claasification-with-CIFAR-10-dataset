@@ -1,0 +1,185 @@
+# Import necessary libraries
+import numpy as np
+from keras.datasets import cifar10
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, BatchNormalization, Dropout
+from keras.utils import to_categorical
+from keras.optimizers import Adam
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import ReduceLROnPlateau
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+from datetime import datetime
+import os
+import tensorflow as tf
+
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        # Restrict TensorFlow to only use the first GPU
+        tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
+    except RuntimeError as e:
+        # Visible devices must be set before GPUs have been initialized
+        print(e)
+
+# Path to the Desktop
+desktop = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+
+# Create a models folder on the Desktop if it doesn't exist
+model_path = os.path.join(desktop, 'models')
+os.makedirs(model_path, exist_ok=True)
+
+# from google.colab import drive
+# drive.mount('/content/drive')
+
+# now you can access your Google Drive as a local filesystem
+model_path = '/content/drive/MyDrive/models'
+
+
+# Load dataset
+(X_train, y_train), (X_test, y_test) = cifar10.load_data()
+
+# Normalize inputs from 0-255 to 0.0-1.0
+X_train = X_train.astype('float32')
+X_test = X_test.astype('float32')
+X_train = X_train / 255.0
+X_test = X_test / 255.0
+
+# Convert class vectors to binary class matrices
+num_classes = 10
+y_train = to_categorical(y_train, num_classes)
+y_test = to_categorical(y_test, num_classes)
+
+# Define the model
+model = Sequential()
+model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))  # Increase number of filters
+model.add(BatchNormalization())
+model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2, 2)))
+
+
+model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(BatchNormalization())
+model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2, 2)))
+
+
+model.add(Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(BatchNormalization())
+model.add(Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2, 2)))
+model.add(Dropout(0.2))
+
+model.add(Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
+model.add(BatchNormalization())
+model.add(Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2, 2)))
+model.add(Dropout(0.2))
+
+model.add(Flatten())
+model.add(Dense(256, activation='relu', kernel_initializer='he_uniform'))  # Increase number of neurons
+model.add(BatchNormalization())
+model.add(Dropout(0.2))
+model.add(Dense(num_classes, activation='softmax'))
+
+# compile model
+optimizer = Adam(learning_rate=0.001)
+model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Set a learning rate reduction
+learning_rate_reduction = ReduceLROnPlateau(monitor='val_accuracy', 
+                                            patience=8, 
+                                            verbose=1, 
+                                            factor=0.6, 
+                                            min_lr=0.00001)
+
+# Create a ImageDataGenerator
+datagen = ImageDataGenerator(
+    rotation_range=10,
+    shear_range=0.02,
+    zoom_range=0.02,
+    width_shift_range=0.02,
+    height_shift_range=0.02,
+    horizontal_flip=True,
+    vertical_flip=False,
+)
+datagen.fit(X_train)
+
+batch_size = 128
+epochs = 70  # Increased the number of epochs
+
+history = model.fit(datagen.flow(X_train, y_train, batch_size=batch_size),
+                    epochs=epochs,
+                    validation_data=(X_test, y_test),
+                    steps_per_epoch=X_train.shape[0] // batch_size,
+                    callbacks=[learning_rate_reduction])
+
+# Test the model
+score = model.evaluate(X_test, y_test, verbose=1)
+
+# Print the scores
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])
+
+
+# Plot training & validation accuracy values
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title('Model accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+# Plot training & validation loss values
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+# Predict the values from the test dataset
+Y_pred = model.predict(X_test)
+# Convert predictions classes to one hot vectors 
+Y_pred_classes = np.argmax(Y_pred,axis = 1) 
+# Convert validation observations to one hot vectors
+Y_true = np.argmax(y_test,axis = 1) 
+# Compute the confusion matrix
+confusion_mtx = confusion_matrix(Y_true, Y_pred_classes) 
+
+# Plot the confusion matrix
+plt.figure(figsize=(10,8))
+sns.heatmap(confusion_mtx, annot=True, fmt="d");
+
+# Show some misclassified examples
+misclassified_idx = np.where(Y_pred_classes != Y_true)[0]
+for i in range(5):
+    plt.figure()
+    idx = misclassified_idx[i]
+    plt.imshow(X_test[idx])
+    plt.title(f"True label: {Y_true[idx]} Predicted: {Y_pred_classes[idx]}");
+plt.show()
+# # Get the current time and format it
+# now = datetime.now()
+# current_time = now.strftime("%H%M")
+# filename = "/content/drive/My Drive/Models/" + current_time + 'pm.h5'  # Change this to your specific path
+
+# # Save the model
+# model.save(filename)
+# Get the current time and format it
+now = datetime.now()
+current_time = now.strftime("%H%M")
+filename = os.path.join(model_path, current_time + 'pm.h5')
+
+# Save the model
+model.save(filename)
+
+
+                                           
