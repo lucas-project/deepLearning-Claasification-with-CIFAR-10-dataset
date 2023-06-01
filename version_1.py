@@ -13,38 +13,27 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 import os
 import tensorflow as tf
+from keras.models import load_model
 
+# Check for GPU and set visible devices
 gpus = tf.config.experimental.list_physical_devices('GPU')
 if gpus:
     try:
-        # Restrict TensorFlow to only use the first GPU
         tf.config.experimental.set_visible_devices(gpus[0], 'GPU')
     except RuntimeError as e:
-        # Visible devices must be set before GPUs have been initialized
         print(e)
 
-# Path to the Desktop
+# Create a models folder if it doesn't exist
 desktop = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
-
-# Create a models folder on the Desktop if it doesn't exist
 model_path = os.path.join(desktop, 'models')
 os.makedirs(model_path, exist_ok=True)
-
-# from google.colab import drive
-# drive.mount('/content/drive')
-
-# now you can access your Google Drive as a local filesystem
-model_path = '/content/drive/MyDrive/models'
-
 
 # Load dataset
 (X_train, y_train), (X_test, y_test) = cifar10.load_data()
 
-# Normalize inputs from 0-255 to 0.0-1.0
-X_train = X_train.astype('float32')
-X_test = X_test.astype('float32')
-X_train = X_train / 255.0
-X_test = X_test / 255.0
+# Normalize inputs
+X_train = X_train.astype('float32') / 255.0
+X_test = X_test.astype('float32') / 255.0
 
 # Convert class vectors to binary class matrices
 num_classes = 10
@@ -53,11 +42,21 @@ y_test = to_categorical(y_test, num_classes)
 
 # Define the model
 model = Sequential()
-model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))  # Increase number of filters
+
+model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))  # Increase number of filters
+model.add(BatchNormalization())
+model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2, 2)))
+model.add(Dropout(0.2))
+
+
+model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
 model.add(BatchNormalization())
 model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
 model.add(BatchNormalization())
 model.add(MaxPooling2D((2, 2)))
+model.add(Dropout(0.2))
 
 
 model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
@@ -65,24 +64,24 @@ model.add(BatchNormalization())
 model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
 model.add(BatchNormalization())
 model.add(MaxPooling2D((2, 2)))
+model.add(Dropout(0.1))
 
-
-model.add(Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
 model.add(BatchNormalization())
-model.add(Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
 model.add(BatchNormalization())
 model.add(MaxPooling2D((2, 2)))
 model.add(Dropout(0.2))
 
-model.add(Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
-model.add(BatchNormalization())
-model.add(Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
-model.add(BatchNormalization())
-model.add(MaxPooling2D((2, 2)))
-model.add(Dropout(0.2))
+# model.add(Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
+# model.add(BatchNormalization())
+# model.add(Conv2D(1024, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
+# model.add(BatchNormalization())
+# model.add(MaxPooling2D((2, 2)))
+# model.add(Dropout(0.2))
 
 model.add(Flatten())
-model.add(Dense(256, activation='relu', kernel_initializer='he_uniform'))  # Increase number of neurons
+model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))  # Increase number of neurons
 model.add(BatchNormalization())
 model.add(Dropout(0.2))
 model.add(Dense(num_classes, activation='softmax'))
@@ -110,40 +109,70 @@ datagen = ImageDataGenerator(
 )
 datagen.fit(X_train)
 
+# Batch size and number of epochs
 batch_size = 128
-epochs = 70  # Increased the number of epochs
+epochs = 70
 
-history = model.fit(datagen.flow(X_train, y_train, batch_size=batch_size),
-                    epochs=epochs,
-                    validation_data=(X_test, y_test),
-                    steps_per_epoch=X_train.shape[0] // batch_size,
-                    callbacks=[learning_rate_reduction])
+# Check if a model already exists
+existing_models = os.listdir(model_path)
+if len(existing_models) > 0:
+    print("Existing models: ", existing_models)
+    answer = input("Would you like to load an existing model? (yes/no): ")
+    if answer.lower() == 'yes':
+        model_name = input("Please enter the model name: ")
+        model = load_model(os.path.join(model_path, model_name))
+    else:
+        # If no, then we train a new model
+        print("Training a new model...")
+        history = model.fit(datagen.flow(X_train, y_train, batch_size=batch_size),
+                            epochs=epochs,
+                            validation_data=(X_test, y_test),
+                            steps_per_epoch=X_train.shape[0] // batch_size,
+                            callbacks=[learning_rate_reduction])
+        # Save the trained model
+        now = datetime.now()
+        current_time = now.strftime("%H%M")
+        filename = os.path.join(model_path, current_time + 'pm.h5')
+        model.save(filename)
+else:
+    print("No existing model found, training a new model...")
+    history = model.fit(datagen.flow(X_train, y_train,     batch_size=batch_size),
+                        epochs=epochs,
+                        validation_data=(X_test, y_test),
+                        steps_per_epoch=X_train.shape[0] // batch_size,
+                        callbacks=[learning_rate_reduction])
+    # Save the trained model
+    now = datetime.now()
+    current_time = now.strftime("%H%M")
+    filename = os.path.join(model_path, current_time + 'pm.h5')
+    model.save(filename)
 
-# Test the model
+# Evaluate the model
 score = model.evaluate(X_test, y_test, verbose=1)
 
 # Print the scores
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
+# If the model is newly trained, plot the history
+if 'history' in locals():
+    # Plot training & validation accuracy values
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
+    plt.title('Model accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show()
 
-# Plot training & validation accuracy values
-plt.plot(history.history['accuracy'])
-plt.plot(history.history['val_accuracy'])
-plt.title('Model accuracy')
-plt.ylabel('Accuracy')
-plt.xlabel('Epoch')
-plt.legend(['Train', 'Test'], loc='upper left')
-plt.show()
-
-# Plot training & validation loss values
-plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
-plt.title('Model loss')
-plt.ylabel('Loss')
-plt.xlabel('Epoch')
-plt.legend(['Train', 'Test'], loc='upper left')
-plt.show()
+    # Plot training & validation loss values
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('Model loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show()
 
 # Predict the values from the test dataset
 Y_pred = model.predict(X_test)
@@ -166,20 +195,7 @@ for i in range(5):
     plt.imshow(X_test[idx])
     plt.title(f"True label: {Y_true[idx]} Predicted: {Y_pred_classes[idx]}");
 plt.show()
-# # Get the current time and format it
-# now = datetime.now()
-# current_time = now.strftime("%H%M")
-# filename = "/content/drive/My Drive/Models/" + current_time + 'pm.h5'  # Change this to your specific path
 
-# # Save the model
-# model.save(filename)
-# Get the current time and format it
-now = datetime.now()
-current_time = now.strftime("%H%M")
-filename = os.path.join(model_path, current_time + 'pm.h5')
-
-# Save the model
-model.save(filename)
 
 
                                            
