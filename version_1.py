@@ -27,9 +27,9 @@ if gpus:
     except RuntimeError as e:
         print(e)
 
-# Create a models folder if it doesn't exist
 desktop = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
-model_path = os.path.join(desktop, 'models')
+deep_path = os.path.join(desktop, 'deepLearning-Claasification-with-CIFAR-10-dataset')  # add the 'deep' folder
+model_path = os.path.join(deep_path, 'models')
 os.makedirs(model_path, exist_ok=True)
 
 # Load dataset
@@ -51,14 +51,14 @@ model.add(BatchNormalization())
 model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
 model.add(BatchNormalization())
 model.add(MaxPooling2D((2, 2)))
-# model.add(Dropout(0.5))
+model.add(Dropout(0.2))
 
 model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
 model.add(BatchNormalization())
 model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
 model.add(BatchNormalization())
 model.add(MaxPooling2D((2, 2)))
-model.add(Dropout(0.5))
+model.add(Dropout(0.4))
 
 model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
 model.add(BatchNormalization())
@@ -93,11 +93,11 @@ learning_rate_reduction = ReduceLROnPlateau(monitor='val_accuracy',
 
 # Create a ImageDataGenerator
 datagen = ImageDataGenerator(
-    rotation_range=15,
+    rotation_range=20,
     shear_range=0.04,
-    zoom_range=0.02,
-    width_shift_range=0.02,
-    height_shift_range=0.02,
+    zoom_range=0.05,
+    width_shift_range=0.05,
+    height_shift_range=0.05,
     horizontal_flip=True,
     vertical_flip=False,
 )
