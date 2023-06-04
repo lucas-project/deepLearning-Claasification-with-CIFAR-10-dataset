@@ -52,13 +52,13 @@ model.add(Conv2D(256, (3, 3), kernel_initializer='he_uniform', padding='same')) 
 model.add(LeakyReLU(alpha=0.1))  # use LeakyReLU activation function
 model.add(BatchNormalization())
 model.add(MaxPooling2D((2, 2)))
-model.add(Dropout(0.6))
+model.add(Dropout(0.7))
 
 model.add(Flatten())  # Flatten the tensor output from the previous layer
 model.add(Dense(64, kernel_initializer='he_uniform'))  # Increase number of neurons
 model.add(LeakyReLU(alpha=0.1))  # use LeakyReLU activation function
 model.add(BatchNormalization())
-model.add(Dropout(0.7))
+model.add(Dropout(0.9))
 model.add(Dense(num_classes, activation='softmax'))  # num_classes is the number of categories you have
 
 
