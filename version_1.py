@@ -8,14 +8,11 @@ from keras.optimizers import Adam
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import ReduceLROnPlateau
 from keras.models import load_model
-import seaborn as sns
-import matplotlib.pyplot as plt
-from datetime import datetime
 import os
 import tensorflow as tf
 from sklearn.metrics import classification_report, confusion_matrix
-import pandas as pd
 from functions import evaluate_and_plot, evaluate_model
+from keras.layers import LeakyReLU
 
 
 
@@ -46,66 +43,93 @@ y_test = to_categorical(y_test, num_classes)
 
 # Define the model
 model = Sequential()
-model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))  # Increase number of filters
-model.add(BatchNormalization())
-model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
-model.add(BatchNormalization())
-model.add(MaxPooling2D((2, 2)))
-model.add(Dropout(0.2))
-
-model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
-model.add(BatchNormalization())
-model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
-model.add(BatchNormalization())
-model.add(MaxPooling2D((2, 2)))
-model.add(Dropout(0.4))
-
-model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
-model.add(BatchNormalization())
-model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
-model.add(BatchNormalization())
-model.add(MaxPooling2D((2, 2)))
-model.add(Dropout(0.5))
-
-# model.add(Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
+# model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))  # Increase number of filters
 # model.add(BatchNormalization())
-# model.add(Conv2D(512, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Added new layer
+# model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
 # model.add(BatchNormalization())
 # model.add(MaxPooling2D((2, 2)))
 # model.add(Dropout(0.2))
 
-model.add(Flatten())
-model.add(Dense(64, activation='relu', kernel_initializer='he_uniform'))  # Increase number of neurons
+# model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+# model.add(BatchNormalization())
+# model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+# model.add(BatchNormalization())
+# model.add(MaxPooling2D((2, 2)))
+# model.add(Dropout(0.4))
+
+# model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+# model.add(BatchNormalization())
+# model.add(Conv2D(256, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+# model.add(BatchNormalization())
+# model.add(MaxPooling2D((2, 2)))
+# model.add(Dropout(0.5))
+
+# model.add(Flatten())
+# model.add(Dense(64, activation='relu', kernel_initializer='he_uniform'))  # Increase number of neurons
+# model.add(BatchNormalization())
+# model.add(Dropout(0.2))
+# model.add(Dense(num_classes, activation='softmax'))
+model.add(Conv2D(64, (3, 3), kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))  # Increase number of filters
+model.add(LeakyReLU(alpha=0.1))  # use LeakyReLU activation function
+model.add(BatchNormalization())
+model.add(Conv2D(64, (3, 3), kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(LeakyReLU(alpha=0.1))  # use LeakyReLU activation function
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2, 2)))
+model.add(Dropout(0.2))
+
+model.add(Conv2D(128, (3, 3), kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))  # Increase number of filters
+model.add(LeakyReLU(alpha=0.1))  # use LeakyReLU activation function
+model.add(BatchNormalization())
+model.add(Conv2D(128, (3, 3), kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(LeakyReLU(alpha=0.1))  # use LeakyReLU activation function
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2, 2)))
+model.add(Dropout(0.3))
+
+model.add(Conv2D(256, (3, 3), kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))  # Increase number of filters
+model.add(LeakyReLU(alpha=0.1))  # use LeakyReLU activation function
+model.add(BatchNormalization())
+model.add(Conv2D(256, (3, 3), kernel_initializer='he_uniform', padding='same'))  # Increase number of filters
+model.add(LeakyReLU(alpha=0.1))  # use LeakyReLU activation function
+model.add(BatchNormalization())
+model.add(MaxPooling2D((2, 2)))
+model.add(Dropout(0.5))
+
+model.add(Flatten())  # Flatten the tensor output from the previous layer
+model.add(Dense(64, kernel_initializer='he_uniform'))  # Increase number of neurons
+model.add(LeakyReLU(alpha=0.1))  # use LeakyReLU activation function
 model.add(BatchNormalization())
 model.add(Dropout(0.2))
-model.add(Dense(num_classes, activation='softmax'))
+model.add(Dense(num_classes, activation='softmax'))  # num_classes is the number of categories you have
+
 
 # compile model
-optimizer = Adam(learning_rate=0.001)
+optimizer = Adam(learning_rate=0.002)
 model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
 # Set a learning rate reduction
 learning_rate_reduction = ReduceLROnPlateau(monitor='val_accuracy', 
                                             patience=8, 
                                             verbose=1, 
-                                            factor=0.4, 
+                                            factor=0.7, 
                                             min_lr=0.00001)
 
 # Create a ImageDataGenerator
 datagen = ImageDataGenerator(
-    rotation_range=20,
-    shear_range=0.04,
-    zoom_range=0.05,
-    width_shift_range=0.05,
-    height_shift_range=0.05,
+    rotation_range=30,
+    shear_range=0.12,
+    zoom_range=0.12,
+    width_shift_range=0.12,
+    height_shift_range=0.12,
     horizontal_flip=True,
     vertical_flip=False,
 )
 datagen.fit(X_train)
 
 # Batch size and number of epochs
-batch_size = 128
-epochs = 100
+batch_size = 256
+epochs = 120
 
 
 
